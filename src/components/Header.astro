@@ -1,14 +1,15 @@
 ---
+const base = import.meta.env.BASE_URL;
 ---
 <header class="nav">
   <div class="nav-inner">
-    <div class="wordmark"><span class="mark"></span>Pramaan</div>
+    <a href={base} class="wordmark" style="text-decoration: none; color: inherit;"><span class="mark"></span>Pramaan</a>
     <nav class="links">
-      <a href="/#problem">The problem</a>
-      <a href="/#how">How it works</a>
-      <a href="/#capabilities">Capabilities</a>
-      <a href="/#impact">Impact</a>
+      <a href={`${base}#problem`}>The problem</a>
+      <a href={`${base}#how`}>How it works</a>
+      <a href={`${base}#capabilities`}>Capabilities</a>
+      <a href={`${base}#impact`}>Impact</a>
     </nav>
-    <a href="/login" class="nav-btn">Login / Profile</a>
+    <a href={`${base}login`} class="nav-btn">Login / Profile</a>
   </div>
 </header>
