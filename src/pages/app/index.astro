@@ -1,13 +1,46 @@
 ---
 import AppLayout from '../../layouts/AppLayout.astro';
-import { queue, activeTenders } from '../../data/mock';
+import { queue, queueCounts, activeTenders, portals, auditTrail, documents } from '../../data/mock';
 
 const base = import.meta.env.BASE_URL;
-const cols = '30px minmax(0,1.5fr) 132px 128px minmax(0,1.2fr) 62px';
-const tcols = 'minmax(0,1.7fr) 74px 92px 96px 92px';
 
-const sortIcon =
-  '<path d="M8 9.5 12 5.5l4 4"/><path d="M8 14.5 12 18.5l4-4"/>';
+/* 7 columns: select · bidder · score · risk · blocking · owner · age */
+const cols = '30px minmax(0,1.5fr) 122px 96px minmax(0,1.2fr) 44px 62px';
+
+const riskRank = { High: 2, Medium: 1, Low: 0 } as const;
+
+const tabs = [
+  { key: 'awaiting', label: 'Awaiting decision', n: queueCounts.awaiting },
+  { key: 'flagged', label: 'Flagged', n: queueCounts.flagged },
+  { key: 'review', label: 'In review', n: queueCounts.review },
+  { key: 'qualified', label: 'Qualified', n: queueCounts.qualified },
+  { key: 'all', label: 'All', n: queueCounts.all },
+];
+
+const statusLabel: Record<string, string> = {
+  awaiting: 'Awaiting decision',
+  flagged: 'Flagged',
+  review: 'In review',
+  qualified: 'Qualified',
+};
+
+/* context rail — all derived, nothing hard-coded */
+const closing = activeTenders
+  .filter((t) => t.closes !== 'Closed')
+  .sort((a, b) => parseInt(a.closes, 10) - parseInt(b.closes, 10));
+
+const live = portals.filter((p) => p.status === 'ok').length;
+const degraded = portals.filter((p) => p.status !== 'ok');
+const slowest = [...portals]
+  .sort((a, b) => parseFloat(b.latency) * (b.latency.includes('ms') ? 0.001 : 1) - parseFloat(a.latency) * (a.latency.includes('ms') ? 0.001 : 1))
+  .slice(0, 3);
+
+const activity = [...auditTrail].reverse().slice(0, 6);
+
+const openTenders = activeTenders.filter((t) => t.closes !== 'Closed').length;
+const checksToday = 1026;
+
+const sortIcon = '<path d="M8 9.5 12 5.5l4 4"/><path d="M8 14.5 12 18.5l4-4"/>';
 const downIcon = '<path d="M12 5.5v13M7.5 14 12 18.5 16.5 14"/>';
 ---
 
@@ -16,148 +49,451 @@ const downIcon = '<path d="M12 5.5v13M7.5 14 12 18.5 16.5 14"/>';
     <div>
       <h1>Verification queue</h1>
       <div class="meta-row">
-        <span>Last sync <b>14:11 IST</b></span>
-        <span><b>4</b> tenders open</span>
-        <span><b>27</b> bidders verified today</span>
-        <span><b>1,026</b> checks</span>
+        <span>
+          <button class="sync" type="button" id="syncBtn" aria-label="Refresh">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4.5V9h-4.5"/></svg>
+            Synced <b id="syncAgo">2 min ago</b>
+          </button>
+        </span>
+        <span><b>{openTenders}</b> tenders open</span>
+        <span><b>{queue.length}</b> bidders in queue</span>
+        <span><b>{checksToday.toLocaleString('en-IN')}</b> checks today</span>
+        <span>Assigned to <b>R. Nair</b></span>
       </div>
     </div>
     <div class="acts">
       <button class="btn-sm" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" set:html={downIcon}></svg>
-        Export
+        Export queue
       </button>
       <a class="btn-sm solid" href={`${base}app/tender`}>Open tender board</a>
     </div>
   </div>
 
+  <div class="jump">
+    <a class="j" href={`${base}app/extract`}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 15.5V4.2"/><path d="m7.8 8.4 4.2-4.2 4.2 4.2"/>
+        <path d="M4.5 14.5v3.6A1.9 1.9 0 0 0 6.4 20h11.2a1.9 1.9 0 0 0 1.9-1.9v-3.6"/>
+      </svg>
+      <span class="l">Extract</span>
+      <span class="c">{documents.length} documents</span>
+    </a>
+    <a class="j" href={`${base}app/report`}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5.5 4.9A1.4 1.4 0 0 1 6.9 3.5h6.2L18.5 9v10.1a1.4 1.4 0 0 1-1.4 1.4H6.9a1.4 1.4 0 0 1-1.4-1.4Z"/>
+        <path d="M13 3.6V9h5.4"/><path d="M9 13.5v3.2M12 11.6v5.1M15 14.7v2"/>
+      </svg>
+      <span class="l">Reports</span>
+      <span class="c">4 this week</span>
+    </a>
+    <a class="j" href={`${base}app/audit`}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="8.5"/><path d="M12 7.2V12l3.2 2"/>
+      </svg>
+      <span class="l">Audit</span>
+      <span class="c">{auditTrail.length} events</span>
+    </a>
+    <a class="j" href={`${base}app/portals`}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/><circle cx="12" cy="3.6" r="1.7"/><circle cx="12" cy="20.4" r="1.7"/>
+        <circle cx="3.6" cy="12" r="1.7"/><circle cx="20.4" cy="12" r="1.7"/>
+        <path d="M12 5.3v3.7M12 15v3.7M5.3 12H9M15 12h3.7"/>
+      </svg>
+      <span class="l">Portals</span>
+      <span class={`c${degraded.length ? ' warn' : ''}`}>{live}/{portals.length} live</span>
+    </a>
+  </div>
+
   <div class="strip">
-    <div class="s"><div class="k">Awaiting decision</div><div class="v warn">4</div></div>
-    <div class="s"><div class="k">Flagged</div><div class="v alert">2</div></div>
-    <div class="s"><div class="k">Qualified today</div><div class="v">19</div></div>
+    <div class="s lead"><div class="k">Awaiting your decision</div><div class="v">{queueCounts.awaiting}</div></div>
+    <div class="s"><div class="k">Flagged</div><div class="v alert">{queueCounts.flagged}</div></div>
+    <div class="s"><div class="k">In review</div><div class="v warn">{queueCounts.review}</div></div>
+    <div class="s"><div class="k">Qualified today</div><div class="v">{queueCounts.qualified}</div></div>
     <div class="s"><div class="k">Median verify</div><div class="v">38<small>s</small></div></div>
-    <div class="s"><div class="k">Sources live</div><div class="v">11<small>/ 12</small></div></div>
+    <div class="s"><div class="k">Sources live</div><div class="v">{live}<small>/ {portals.length}</small></div></div>
   </div>
 
-  <div class="tabs">
-    <button class="tab on" type="button">Awaiting decision <span class="n">4</span></button>
-    <button class="tab" type="button">Flagged <span class="n">2</span></button>
-    <button class="tab" type="button">Qualified <span class="n">19</span></button>
-    <button class="tab" type="button">All bidders <span class="n">27</span></button>
-  </div>
-
-  <div class="panel">
-    <div class="toolbar">
-      <button class="chipf on" type="button">
-        Risk: Medium+ <span class="x" aria-hidden="true">×</span>
-      </button>
-      <button class="chipf" type="button">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7v6l-4 2v-8L4 5Z"/></svg>
-        Tender
-      </button>
-      <button class="chipf" type="button">Blocking clause</button>
-      <div class="tool-sep" aria-hidden="true"></div>
-      <div class="inline-search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
-        <input type="search" placeholder="Filter this list…" aria-label="Filter queue" />
+  <div class="grid-2">
+    <div>
+      <div class="tabs" id="qtabs" role="tablist" aria-label="Filter the queue">
+        {tabs.map((t, i) => (
+          <button
+            class={`tab${i === 0 ? ' on' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={i === 0 ? 'true' : 'false'}
+            tabindex={i === 0 ? 0 : -1}
+            data-filter={t.key}
+          >
+            {t.label} <span class="n">{t.n}</span>
+          </button>
+        ))}
       </div>
-      <div class="tool-right">
-        <span style="font-family:var(--mono); font-size:11px; color:var(--ink-muted);">4 rows</span>
-      </div>
-    </div>
 
-    <div class="panel-body flush">
-      <div class="tbl">
-        <div class="tr th" style={`grid-template-columns:${cols};`}>
-          <span class="selcell"><input type="checkbox" aria-label="Select all" /></span>
-          <span>Bidder</span>
-          <span>
-            <button class="sortable act" type="button">
-              Score
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" set:html={downIcon}></svg>
-            </button>
-          </span>
-          <span>
-            <button class="sortable" type="button">
-              Risk
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" set:html={sortIcon}></svg>
-            </button>
-          </span>
-          <span>Blocking</span>
-          <span>
-            <button class="sortable" type="button">
-              Age
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" set:html={sortIcon}></svg>
-            </button>
-          </span>
-        </div>
-
-        {queue.map((q) => (
-          <div class="tr row" style={`grid-template-columns:${cols};`}>
-            <span class="selcell"><input type="checkbox" aria-label={`Select ${q.name}`} /></span>
-            <a href={`${base}app/bidder`} class="who" style="text-decoration:none; color:inherit;">
-              <span class="av" aria-hidden="true">{q.name.split(' ').slice(0, 2).map((w) => w[0]).join('')}</span>
-              <span class="t">
-                <span class="n">{q.name}</span>
-                <span class="s">{q.tender}</span>
-              </span>
-            </a>
-            <span class="score-cell">
-              <span class="v">{q.score}</span>
-              <span class={`bar ${q.tone}`}><i style={`--w:${q.score}%`}></i></span>
-            </span>
-            <span><span class={`bdg ${q.tone}`}>{q.risk}</span></span>
-            <span style="font-size:12.5px; color:var(--ink-soft); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{q.why}</span>
-            <span class="mono-cell">{q.age}</span>
+      <div class="panel">
+        <div class="toolbar">
+          <div class="inline-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+            <input type="search" id="qfilter" placeholder="Filter by bidder, tender or reason…" aria-label="Filter the queue" />
           </div>
-        ))}
-      </div>
-    </div>
-
-    <div class="pager">
-      <span>4 of 4</span>
-      <div class="pg">
-        <button class="pgbtn" type="button" disabled aria-label="Previous">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
-        </button>
-        <button class="pgbtn on" type="button">1</button>
-        <button class="pgbtn" type="button" disabled aria-label="Next">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-head">
-      <h2>Open tenders</h2>
-    </div>
-    <div class="panel-body flush">
-      <div class="tbl">
-        <div class="tr th" style={`grid-template-columns:${tcols};`}>
-          <span>Tender</span>
-          <span>Bids</span>
-          <span>Verified</span>
-          <span>Value</span>
-          <span>Closes</span>
+          <button class="chipf" type="button" data-quick="High">Risk: High</button>
+          <button class="chipf" type="button" data-quick="clause">Blocking clause</button>
+          <button class="chipf" type="button" data-quick="GEM/2026/B/4471">This tender</button>
+          <div class="tool-right">
+            <span class="mono-cell num" id="qcount">0 rows</span>
+          </div>
         </div>
-        {activeTenders.map((t) => (
-          <a class="tr row" href={`${base}app/tender`} style={`grid-template-columns:${tcols};`}>
-            <span class="who">
-              <span class="t">
-                <span class="n">{t.title}</span>
-                <span class="s">{t.id}</span>
+
+        <div class="panel-body flush">
+          <div class="tbl" id="qtbl" style="min-width:840px;">
+            <div class="tr th" style={`grid-template-columns:${cols};`}>
+              <span class="selcell"><input type="checkbox" data-selall aria-label="Select all rows" /></span>
+              <span>
+                <button class="sortable" type="button" data-sort="name">
+                  Bidder
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" set:html={sortIcon}></svg>
+                </button>
               </span>
-            </span>
-            <span class="mono-cell">{t.bidders}</span>
-            <span class="mono-cell" style={t.verified === t.bidders ? 'color:var(--verify)' : 'color:var(--flag)'}>
-              {t.verified}/{t.bidders}
-            </span>
-            <span class="mono-cell">{t.value}</span>
-            <span class="mono-cell" style={t.closes === 'Closed' ? 'color:var(--ink-muted)' : ''}>{t.closes}</span>
-          </a>
-        ))}
+              <span>
+                <button class="sortable act" type="button" data-sort="score">
+                  Score
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" set:html={downIcon}></svg>
+                </button>
+              </span>
+              <span>
+                <button class="sortable" type="button" data-sort="risk">
+                  Risk
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" set:html={sortIcon}></svg>
+                </button>
+              </span>
+              <span>Blocking</span>
+              <span>Owner</span>
+              <span>
+                <button class="sortable" type="button" data-sort="mins">
+                  Age
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" set:html={sortIcon}></svg>
+                </button>
+              </span>
+            </div>
+
+            {queue.map((q) => (
+              <div
+                class="tr row"
+                style={`grid-template-columns:${cols};`}
+                data-status={q.status}
+                data-name={q.name}
+                data-score={q.score}
+                data-risk={riskRank[q.risk]}
+                data-mins={q.mins}
+                data-text={`${q.name} ${q.tender} ${q.why} ${q.risk} ${statusLabel[q.status]}`.toLowerCase()}
+              >
+                <span class="selcell"><input type="checkbox" data-row aria-label={`Select ${q.name}`} /></span>
+                <a href={`${base}app/bidder`} class="who" style="text-decoration:none; color:inherit;">
+                  <span class="av" aria-hidden="true">{q.name.split(' ').slice(0, 2).map((w) => w[0]).join('')}</span>
+                  <span class="t">
+                    <span class="n">{q.name}</span>
+                    <span class="s">{q.tender}</span>
+                  </span>
+                </a>
+                <span class="score-cell">
+                  <span class="v num">{q.score}</span>
+                  <span class={`bar ${q.tone}`}><i style={`--w:${q.score}%`}></i></span>
+                </span>
+                <span><span class={`bdg ${q.tone}`}>{q.risk}</span></span>
+                <span style="font-size:12.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                  {q.why
+                    ? <span style="color:var(--ink-soft);">{q.why}</span>
+                    : <span class="muted" style="font-family:var(--mono); font-size:11.5px;">{statusLabel[q.status]}</span>}
+                </span>
+                <span><span class="own" title={q.owner === 'RN' ? 'R. Nair' : 'A. Sharma'}>{q.owner}</span></span>
+                <span class="mono-cell num" data-age>{q.age}</span>
+              </div>
+            ))}
+
+            <div class="empty" id="qempty">
+              <div class="t">Nothing matches that filter</div>
+              <div class="d">No bidder in the queue matches the current tab and search.</div>
+              <button class="btn-sm" type="button" id="qreset">Clear filters</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="pager">
+          <span id="qrange">Showing 0 of 0</span>
+          <div class="pg">
+            <button class="pgbtn" type="button" id="qprev" aria-label="Previous page">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+            </button>
+            <span class="mono-cell num" id="qpage" style="padding:0 4px;">1 / 1</span>
+            <button class="pgbtn" type="button" id="qnext" aria-label="Next page">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-side stack">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Closing soonest</h3>
+          <a href={`${base}app/tender`} class="note" style="text-decoration:none;">All tenders</a>
+        </div>
+        <div class="mini">
+          {closing.map((t) => {
+            const days = parseInt(t.closes, 10);
+            const pct = Math.round((t.verified / t.bidders) * 100);
+            return (
+              <a class="mrow" href={`${base}app/tender`}>
+                <span class="t">{t.title}</span>
+                <span class={`r${days <= 2 ? ' warn' : ''}`}>{t.closes}</span>
+                <span class="s">
+                  <span>{t.id}</span>
+                  <span>{t.value}</span>
+                  <span>{t.verified}/{t.bidders} verified</span>
+                </span>
+                <span class="full">
+                  <span class={`meter${pct < 100 ? ' warn' : ''}`} role="img" aria-label={`${pct} per cent of bidders verified`}>
+                    <i style={`--w:${pct}%`}></i>
+                  </span>
+                </span>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Source health</h3>
+          <a href={`${base}app/portals`} class="note" style="text-decoration:none;">Portal status</a>
+        </div>
+        <div class="mini">
+          <div class="mrow">
+            <span class="t">Responding</span>
+            <span class="r">{live} of {portals.length}</span>
+          </div>
+          {degraded.map((p) => (
+            <div class="mrow">
+              <span class="t">{p.name}</span>
+              <span class="r warn">{p.status}</span>
+              <span class="s">
+                <span>{p.latency}</span>
+                <span>{p.uptime} uptime</span>
+                <span>last {p.last}</span>
+              </span>
+            </div>
+          ))}
+          {slowest.filter((p) => p.status === 'ok').map((p) => (
+            <div class="mrow">
+              <span class="t">{p.name}</span>
+              <span class="r">{p.latency}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Latest activity</h3>
+          <a href={`${base}app/audit`} class="note" style="text-decoration:none;">Full trail</a>
+        </div>
+        <div class="feed">
+          {activity.map((a) => (
+            <div class={`fev ${a.tone}`}>
+              <span class="dot" aria-hidden="true"></span>
+              <span class="a">{a.action}</span>
+              <span class="w">{a.ts.replace('08 Sep · ', '')}</span>
+              <span class="d">{a.detail}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   </div>
+
+  <script is:inline>
+    (function () {
+      var tbl = document.getElementById('qtbl');
+      if (!tbl) return;
+
+      var rows = Array.prototype.slice.call(tbl.querySelectorAll('.tr.row'));
+      var empty = document.getElementById('qempty');
+      var tabsEl = document.getElementById('qtabs');
+      var search = document.getElementById('qfilter');
+      var countEl = document.getElementById('qcount');
+      var rangeEl = document.getElementById('qrange');
+      var pageEl = document.getElementById('qpage');
+      var prev = document.getElementById('qprev');
+      var next = document.getElementById('qnext');
+      var PER = 8;
+
+      var state = { status: 'awaiting', q: '', sort: 'score', dir: -1, page: 1 };
+
+      function val(row, key) {
+        if (key === 'name') return row.getAttribute('data-name').toLowerCase();
+        return parseFloat(row.getAttribute('data-' + key)) || 0;
+      }
+
+      function matches(row) {
+        if (state.status !== 'all' && row.getAttribute('data-status') !== state.status) return false;
+        if (state.q && row.getAttribute('data-text').indexOf(state.q) === -1) return false;
+        return true;
+      }
+
+      function render() {
+        var vis = rows.filter(matches);
+        vis.sort(function (a, b) {
+          var x = val(a, state.sort), y = val(b, state.sort);
+          if (x < y) return -1 * state.dir;
+          if (x > y) return 1 * state.dir;
+          return 0;
+        });
+
+        var pageCount = Math.max(1, Math.ceil(vis.length / PER));
+        if (state.page > pageCount) state.page = pageCount;
+        var start = (state.page - 1) * PER;
+        var shown = vis.slice(start, start + PER);
+
+        rows.forEach(function (r) { r.hidden = true; r.classList.remove('lastvis'); });
+        // re-append in sorted order; the header row is never moved
+        vis.forEach(function (r) { tbl.appendChild(r); });
+        if (empty) tbl.appendChild(empty);
+        shown.forEach(function (r) { r.hidden = false; });
+        if (shown.length) shown[shown.length - 1].classList.add('lastvis');
+
+        if (empty) empty.classList.toggle('on', vis.length === 0);
+        if (countEl) countEl.textContent = vis.length + (vis.length === 1 ? ' row' : ' rows');
+        if (rangeEl) {
+          rangeEl.textContent = vis.length
+            ? 'Showing ' + (start + 1) + '–' + (start + shown.length) + ' of ' + vis.length
+            : 'Showing 0 of 0';
+        }
+        if (pageEl) pageEl.textContent = state.page + ' / ' + pageCount;
+        if (prev) prev.disabled = state.page <= 1;
+        if (next) next.disabled = state.page >= pageCount;
+      }
+
+      /* tabs — a real tablist, arrow keys included */
+      if (tabsEl) {
+        var btns = Array.prototype.slice.call(tabsEl.querySelectorAll('.tab'));
+        function pick(btn, focus) {
+          btns.forEach(function (t) {
+            var on = t === btn;
+            t.classList.toggle('on', on);
+            t.setAttribute('aria-selected', on ? 'true' : 'false');
+            t.tabIndex = on ? 0 : -1;
+            if (on && focus) t.focus();
+          });
+          state.status = btn.getAttribute('data-filter');
+          state.page = 1;
+          render();
+        }
+        tabsEl.addEventListener('click', function (e) {
+          var b = e.target.closest('.tab');
+          if (b) pick(b, false);
+        });
+        tabsEl.addEventListener('keydown', function (e) {
+          var i = btns.indexOf(document.activeElement);
+          if (i < 0) return;
+          var n = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1
+                : e.key === 'Home' ? 0 : e.key === 'End' ? btns.length - 1 : -1;
+          if (n === -1) return;
+          e.preventDefault();
+          pick(btns[(n + btns.length) % btns.length], true);
+        });
+      }
+
+      /* sortable headers actually sort */
+      Array.prototype.slice.call(tbl.querySelectorAll('.sortable')).forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var key = btn.getAttribute('data-sort');
+          if (state.sort === key) state.dir = -state.dir;
+          else { state.sort = key; state.dir = key === 'name' ? 1 : -1; }
+
+          tbl.querySelectorAll('.sortable').forEach(function (b) {
+            var on = b === btn;
+            b.classList.toggle('act', on);
+            b.querySelector('svg').innerHTML = !on
+              ? '<path d="M8 9.5 12 5.5l4 4"/><path d="M8 14.5 12 18.5l4-4"/>'
+              : state.dir === -1
+                ? '<path d="M12 5.5v13M7.5 14 12 18.5 16.5 14"/>'
+                : '<path d="M12 18.5v-13M7.5 10 12 5.5 16.5 10"/>';
+          });
+          state.page = 1;
+          render();
+        });
+      });
+
+      /* search + quick filters */
+      if (search) {
+        search.addEventListener('input', function () {
+          state.q = search.value.trim().toLowerCase();
+          state.page = 1;
+          render();
+        });
+      }
+      document.querySelectorAll('[data-quick]').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+          var term = chip.getAttribute('data-quick').toLowerCase();
+          var on = chip.classList.contains('on');
+          document.querySelectorAll('[data-quick]').forEach(function (c) { c.classList.remove('on'); });
+          if (!on) chip.classList.add('on');
+          if (search) search.value = on ? '' : chip.getAttribute('data-quick');
+          state.q = on ? '' : term;
+          state.page = 1;
+          render();
+        });
+      });
+
+      if (prev) prev.addEventListener('click', function () { if (state.page > 1) { state.page--; render(); } });
+      if (next) next.addEventListener('click', function () { state.page++; render(); });
+
+      var reset = document.getElementById('qreset');
+      if (reset) {
+        reset.addEventListener('click', function () {
+          state.q = '';
+          state.page = 1;
+          if (search) search.value = '';
+          document.querySelectorAll('[data-quick]').forEach(function (c) { c.classList.remove('on'); });
+          var all = tabsEl && tabsEl.querySelector('[data-filter="all"]');
+          if (all) all.click(); else render();
+        });
+      }
+
+      render();
+
+      /* the whole row opens the record — the checkbox and the name link
+         keep their own behaviour */
+      tbl.addEventListener('click', function (e) {
+        if (e.target.closest('input, a, button')) return;
+        var row = e.target.closest('.tr.row');
+        if (!row) return;
+        var link = row.querySelector('a.who');
+        if (link) window.location.href = link.getAttribute('href');
+      });
+
+      /* the sync control reports a real elapsed time */
+      var syncBtn = document.getElementById('syncBtn');
+      var syncAgo = document.getElementById('syncAgo');
+      if (syncBtn && syncAgo) {
+        var last = Date.now() - 2 * 60000;
+        function ago() {
+          var m = Math.round((Date.now() - last) / 60000);
+          syncAgo.textContent = m < 1 ? 'just now' : m === 1 ? '1 min ago' : m + ' min ago';
+        }
+        ago();
+        setInterval(ago, 30000);
+        syncBtn.addEventListener('click', function () {
+          syncBtn.classList.add('spin');
+          setTimeout(function () {
+            syncBtn.classList.remove('spin');
+            last = Date.now();
+            ago();
+          }, 700);
+        });
+      }
+    })();
+  </script>
 </AppLayout>

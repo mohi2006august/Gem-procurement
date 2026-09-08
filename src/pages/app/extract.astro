@@ -1,0 +1,315 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { documents, focus, tender } from '../../data/mock';
+
+const base = import.meta.env.BASE_URL;
+
+const totalFields = documents.reduce((n, d) => n + d.fields.length, 0);
+const matchedFields = documents.reduce((n, d) => n + d.fields.filter((f) => f.match).length, 0);
+const meanConf = (documents.reduce((n, d) => n + d.confidence, 0) / documents.length).toFixed(3);
+const issuerVerified = documents.filter((d) => d.source === 'DigiLocker').length;
+
+const stages = [
+  { t: 'Intake', d: 'Pages counted, type classified, checksum recorded', ms: '0.4 s' },
+  { t: 'Text & layout', d: 'Tables, stamps and signature blocks located', ms: '2.1 s' },
+  { t: 'Field extraction', d: `${totalFields} fields pulled from ${documents.length} documents`, ms: '1.7 s' },
+  { t: 'Source match', d: 'Each field compared with the issuing portal record', ms: '3.2 s' },
+];
+
+const docIcon =
+  '<path d="M6 4.6A1.4 1.4 0 0 1 7.4 3.2h5.4L18 8.4v11a1.4 1.4 0 0 1-1.4 1.4H7.4A1.4 1.4 0 0 1 6 19.4Z"/><path d="M12.6 3.3V8.6H18"/>';
+const tick = '<path d="m5 13 4 4L19 7"/>';
+---
+
+<AppLayout title="Upload & extract — Pramaan" active="extract" crumbs={[{ label: 'Upload & extract' }]}>
+  <div class="page-head">
+    <div>
+      <h1>Upload &amp; extract</h1>
+      <div class="meta-row">
+        <span>{tender.id}</span>
+        <span>{focus.name}</span>
+        <span><b>{documents.length}</b> documents</span>
+        <span><b>{totalFields}</b> fields</span>
+        <span>Mean confidence <b>{meanConf}</b></span>
+      </div>
+    </div>
+    <div class="acts">
+      <button class="btn-sm" type="button" data-ask="How does upload and extract work?">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.8" cy="10.8" r="6.6"/><path d="m15.6 15.6 4.2 4.2"/></svg>
+        Ask about this
+      </button>
+      <button class="btn-sm solid" type="button" id="runBtn">Run extraction</button>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="stack">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Document intake</h2>
+          <span class="note">PDF · JPG · PNG · max 25 MB</span>
+        </div>
+        <div class="panel-body">
+          <div class="drop" id="drop">
+            <span class="ic" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 15.5V4.2"/><path d="m7.8 8.4 4.2-4.2 4.2 4.2"/>
+                <path d="M4.5 14.5v3.6A1.9 1.9 0 0 0 6.4 20h11.2a1.9 1.9 0 0 0 1.9-1.9v-3.6"/>
+              </svg>
+            </span>
+            <h3>Drop bid documents here</h3>
+            <p>
+              Issuer-verified copies arrive through DigiLocker automatically. Anything the bidder
+              uploaded manually is read here and cross-checked against its issuing portal.
+            </p>
+            <button class="btn-sm pick" type="button" id="pickBtn">Choose files</button>
+            <input type="file" id="fileIn" multiple accept=".pdf,.jpg,.jpeg,.png" hidden />
+            <div class="types">Demo environment · files stay in the browser and are not uploaded</div>
+          </div>
+        </div>
+        <div class="panel-body flush">
+          <div class="flist" id="flist">
+            {documents.map((d) => (
+              <div class="fitem">
+                <span class="fi" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" set:html={docIcon}></svg>
+                </span>
+                <span style="min-width:0;">
+                  <span class="nm">{d.name}</span>
+                  <span class="sub">{d.type} · {d.pages} {d.pages === 1 ? 'page' : 'pages'}</span>
+                </span>
+                <span class="src">{d.source}</span>
+                <span class="conf">conf <b>{d.confidence.toFixed(2)}</b></span>
+                <span>
+                  <span class={`bdg ${d.status}`}>
+                    {d.status === 'ok' ? 'Extracted' : d.status === 'warn' ? 'Needs review' : 'Field mismatch'}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div class="pager">
+          <span id="fcount">{documents.length} documents · {issuerVerified} issuer-verified</span>
+          <div class="pg">
+            <button class="pgbtn" type="button" id="clearBtn">Clear added files</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Extracted fields</h2>
+          <span class="note">{matchedFields} of {totalFields} matched at source</span>
+        </div>
+        <div class="panel-body flush">
+          {documents.map((d) => (
+            <div class="grp">
+              <div class="grp-head">
+                <span class="t">{d.name}</span>
+                <span class="n">{d.source} · {d.type} · confidence {d.confidence.toFixed(2)}</span>
+              </div>
+              {d.fields.map((f) => (
+                <div class="xrow">
+                  <div>
+                    <div class="k">{f.k} — extracted</div>
+                    <div class="v">{f.v}</div>
+                  </div>
+                  <div>
+                    <div class="k">Source record</div>
+                    <div class={`v ${f.match ? '' : 'no'}`}>
+                      {f.match ? 'Identical value at source' : 'No corroborating source value'}
+                    </div>
+                  </div>
+                  <div>
+                    <span class={`bdg ${f.match ? 'ok' : 'alert'}`}>{f.match ? 'Matched' : 'Unmatched'}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-side stack">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Extraction run</h3>
+          <span class="note" id="runState">Completed 09:14:14</span>
+        </div>
+        <div class="panel-body">
+          <div class="pipe" id="pipe">
+            {stages.map((s, i) => (
+              <div class="pstep done" data-step={i}>
+                <span class="b" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" set:html={tick}></svg>
+                </span>
+                <div>
+                  <div class="t">{s.t}</div>
+                  <div class="d">{s.d}</div>
+                </div>
+                <span class="ms">{s.ms}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>Output</h3></div>
+        <div class="panel-body">
+          <div class="fld"><span class="k">Documents</span><span class="v">{documents.length}</span></div>
+          <div class="fld"><span class="k">Fields extracted</span><span class="v">{totalFields}</span></div>
+          <div class="fld"><span class="k">Matched at source</span><span class="v yes">{matchedFields}</span></div>
+          <div class="fld"><span class="k">Unmatched</span><span class="v no">{totalFields - matchedFields}</span></div>
+          <div class="fld"><span class="k">Issuer-verified</span><span class="v">{issuerVerified} of {documents.length}</span></div>
+          <div class="fld"><span class="k">Mean confidence</span><span class="v">{meanConf}</span></div>
+        </div>
+        <div class="decide-foot">
+          <a class="btn-sm solid" href={`${base}app/bidder`}>Open compliance record</a>
+          <span class="saved" id="extSaved">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" set:html={tick}></svg>
+            Extraction complete
+          </span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>Unmatched fields</h3></div>
+        <div class="panel-body flush">
+          {documents.map((d) => d.fields.filter((f) => !f.match).map((f) => (
+            <div class="find medium">
+              <span class="sev" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v5M12 16.2v.1"/><circle cx="12" cy="12" r="9"/></svg>
+              </span>
+              <div>
+                <h4>{f.k}</h4>
+                <p>{d.name} — extracted <b>{f.v}</b>, with no corroborating value at the issuing source.</p>
+              </div>
+            </div>
+          )))}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script is:inline>
+    (function () {
+      var drop = document.getElementById('drop');
+      var pick = document.getElementById('pickBtn');
+      var input = document.getElementById('fileIn');
+      var list = document.getElementById('flist');
+      var count = document.getElementById('fcount');
+      var clear = document.getElementById('clearBtn');
+      var runBtn = document.getElementById('runBtn');
+      var pipe = document.getElementById('pipe');
+      var runState = document.getElementById('runState');
+      var saved = document.getElementById('extSaved');
+      if (!drop || !list) return;
+
+      var baseLabel = count ? count.textContent : '';
+      function documentCount() {
+        return list.querySelectorAll('.fitem').length;
+      }
+      function sizeOf(n) {
+        if (n < 1024) return n + ' B';
+        if (n < 1048576) return (n / 1024).toFixed(0) + ' KB';
+        return (n / 1048576).toFixed(1) + ' MB';
+      }
+      function sync() {
+        var added = list.querySelectorAll('.fitem.added').length;
+        if (count) {
+          count.textContent = added
+            ? documentCount() + ' documents · ' + added + ' added this session'
+            : baseLabel;
+        }
+        if (clear) clear.disabled = added === 0;
+      }
+
+      function addFiles(files) {
+        Array.prototype.slice.call(files).forEach(function (f) {
+          var row = document.createElement('div');
+          row.className = 'fitem added';
+          row.innerHTML =
+            '<span class="fi" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4.6A1.4 1.4 0 0 1 7.4 3.2h5.4L18 8.4v11a1.4 1.4 0 0 1-1.4 1.4H7.4A1.4 1.4 0 0 1 6 19.4Z"/><path d="M12.6 3.3V8.6H18"/></svg></span>' +
+            '<span style="min-width:0;"><span class="nm"></span><span class="sub"></span></span>' +
+            '<span class="src">Manual upload</span>' +
+            '<span class="conf">conf <b>—</b></span>' +
+            '<span><span class="bdg pending">Queued</span></span>';
+          row.querySelector('.nm').textContent = f.name;
+          row.querySelector('.sub').textContent =
+            sizeOf(f.size) + ' · ' + (f.type || 'unknown type');
+          list.appendChild(row);
+        });
+        sync();
+      }
+
+      if (pick && input) {
+        pick.addEventListener('click', function () { input.click(); });
+        input.addEventListener('change', function () { addFiles(input.files); input.value = ''; });
+      }
+
+      ['dragenter', 'dragover'].forEach(function (t) {
+        drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add('over'); });
+      });
+      ['dragleave', 'drop'].forEach(function (t) {
+        drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.remove('over'); });
+      });
+      drop.addEventListener('drop', function (e) {
+        if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+      });
+
+      if (clear) {
+        clear.addEventListener('click', function () {
+          list.querySelectorAll('.fitem.added').forEach(function (r) { r.remove(); });
+          sync();
+        });
+      }
+      sync();
+
+      // re-running the pipeline should actually walk the stages
+      if (runBtn && pipe) {
+        var steps = Array.prototype.slice.call(pipe.querySelectorAll('.pstep'));
+        var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var spinner =
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" class="spin"><path d="M12 4.5a7.5 7.5 0 1 0 7.5 7.5"/></svg>';
+        var tickSvg =
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg>';
+
+        runBtn.addEventListener('click', function () {
+          if (runBtn.disabled) return;
+          runBtn.disabled = true;
+          if (saved) saved.classList.remove('on');
+          steps.forEach(function (s) {
+            s.className = 'pstep idle';
+            s.querySelector('.b').innerHTML = '';
+          });
+          if (runState) runState.textContent = 'Running…';
+
+          var i = 0;
+          (function next() {
+            if (i > 0) {
+              steps[i - 1].className = 'pstep done';
+              steps[i - 1].querySelector('.b').innerHTML = tickSvg;
+            }
+            if (i === steps.length) {
+              if (runState) runState.textContent = 'Completed just now';
+              if (saved) saved.classList.add('on');
+              runBtn.disabled = false;
+              list.querySelectorAll('.fitem.added .bdg').forEach(function (b) {
+                b.className = 'bdg na';
+                b.textContent = 'Not in demo';
+              });
+              return;
+            }
+            steps[i].className = 'pstep run';
+            steps[i].querySelector('.b').innerHTML = spinner;
+            i++;
+            setTimeout(next, reduce ? 60 : 520);
+          })();
+        });
+      }
+    })();
+  </script>
+</AppLayout>

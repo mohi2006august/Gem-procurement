@@ -72,7 +72,7 @@ const riskColor = (r: string) =>
     <div class="panel-body flush">
       <div class="tbl">
         <div class="tr th" style={`grid-template-columns:${cols};`}>
-          <span class="selcell"><input type="checkbox" aria-label="Select all" /></span>
+          <span class="selcell"><input type="checkbox" data-selall aria-label="Select all rows" /></span>
           <span>Bidder</span>
           <span>
             <button class="sortable act" type="button">
@@ -92,7 +92,7 @@ const riskColor = (r: string) =>
 
         {bidders.map((b) => (
           <div class="tr row" style={`grid-template-columns:${cols};`}>
-            <span class="selcell"><input type="checkbox" aria-label={`Select ${b.name}`} /></span>
+            <span class="selcell"><input type="checkbox" data-row aria-label={`Select ${b.name}`} /></span>
             <a href={`${base}app/bidder`} class="who" style="text-decoration:none; color:inherit;">
               <span class="av" aria-hidden="true">{b.ini}</span>
               <span class="t">

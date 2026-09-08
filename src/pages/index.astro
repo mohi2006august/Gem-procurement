@@ -22,6 +22,23 @@ const portals = [
   { n: 'GeM seller profile',        logo: 'gem.svg' },
 ];
 
+/* six of the eleven, shown as an overlapped stack in the hero */
+const heroLogos = [
+  { n: 'Udyam / MSME', f: 'udyam.png' },
+  { n: 'PAN & Income Tax', f: 'pan.png' },
+  { n: 'MCA21', f: 'mca21.svg' },
+  { n: 'EPFO', f: 'epfo.png' },
+  { n: 'ESIC', f: 'esic.png' },
+  { n: 'DigiLocker', f: 'digilocker.png' },
+];
+
+const heroFacts = [
+  { k: 'Sources queried', v: '11', s: 'government portals' },
+  { k: 'Per bidder', v: '38', s: 'individual checks' },
+  { k: 'Every retrieval', v: 'Timestamped', s: '' },
+  { k: 'Final call', v: 'The officer’s', s: '' },
+];
+
 const steps = [
   {
     n: '01',
@@ -86,39 +103,42 @@ const faqs = [
     <section class="hero">
       <div class="wrap">
         <div class="hero-grid">
-          <div>
-            <span class="pill"><span class="dot" aria-hidden="true"></span> Eleven portals, one compliance record</span>
+          <div class="hero-copy">
+            <span class="pill"><span class="dot" aria-hidden="true"></span> Human-in-the-loop bid verification</span>
 
-            <h1>Get the paperwork done — before the <span class="accent">tender clock</span> runs out.</h1>
+            <h1>
+              Eleven portals.<br />
+              One <span class="accent">verified record<svg class="ul" viewBox="0 0 300 14" preserveAspectRatio="none" aria-hidden="true"><path d="M4 9C58 3.5 116 12 172 6.5 214 2.5 258 4.5 296 8"/></svg></span>.
+            </h1>
 
             <p class="lede">
-              Pramaan connects to Udyam, GSTN, PAN, MCA21, EPFO, ESIC and DigiLocker to verify GeM
-              bidder eligibility automatically — turning a document-intensive, multi-portal check into
-              one auditable compliance record. The procurement officer still makes the call. Pramaan
-              just makes sure they are deciding on complete, verified information.
+              A GeM procurement officer checks every bidder against Udyam, GSTN, PAN, MCA21, EPFO,
+              ESIC, DigiLocker and four more. Pramaan queries all of them, cross-checks every
+              submitted value against what the portal actually returns, and hands back
+              <b>one scored, auditable compliance record</b>.
             </p>
 
             <div class="cta-row">
-              <a class="btn-primary" href="#how">
-                See how it works
+              <a class="btn-primary" href={`${base}login`}>
+                Open the officer console
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
               </a>
-              <a class="btn-secondary" href={`${base}login`}>Officer login</a>
+              <a class="btn-secondary" href="#how">See how it works</a>
             </div>
 
-            <div class="hero-trust">
-              <span class="item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 13 4 4L19 7"/></svg>
-                Human-in-the-loop by design
-              </span>
-              <span class="item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 13 4 4L19 7"/></svg>
-                Every check timestamped
-              </span>
-              <span class="item">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 13 4 4L19 7"/></svg>
-                Consent-based retrieval
-              </span>
+            <p class="cta-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 13 4 4L19 7"/></svg>
+              Pramaan recommends. The procurement officer decides.
+            </p>
+
+            <div class="hero-proof">
+              <span class="lbl">Sources queried</span>
+              <div class="hero-logos">
+                {heroLogos.map((l) => (
+                  <span title={l.n}><img src={`${base}logos/${l.f}`} alt={l.n} loading="lazy" decoding="async" /></span>
+                ))}
+                <span class="more" title="Startup India, NSIC, Make in India / BIS-DPIIT, debarment registers, GeM seller profile">+5</span>
+              </div>
             </div>
           </div>
 
@@ -142,6 +162,12 @@ const faqs = [
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 13 4 4L19 7"/></svg>
                     Verified
                   </span>
+                </div>
+
+                <div class="app-prog" aria-hidden="true">
+                  <span>37 / 38 checks</span>
+                  <span class="track"><i></i></span>
+                  <span>11 sources</span>
                 </div>
 
                 <div class="app-score">
@@ -206,7 +232,20 @@ const faqs = [
               <div class="k">Officer time saved</div>
               <div class="v">42 min <span>per bidder</span></div>
             </div>
+
+            <div class="app-chip" aria-hidden="true">
+              <i></i> GSTN responded · <b>1.2 s</b>
+            </div>
           </div>
+        </div>
+
+        <div class="hero-facts reveal">
+          {heroFacts.map((f) => (
+            <div class="f">
+              <div class="k">{f.k}</div>
+              <div class="v">{f.v} {f.s && <small>{f.s}</small>}</div>
+            </div>
+          ))}
         </div>
       </div>
     </section>

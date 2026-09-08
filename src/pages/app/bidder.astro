@@ -51,7 +51,7 @@ const checkCount = groups.reduce((n, g) => n + g.checks.length, 0);
       </div>
 
       <div style="display:flex; align-items:center; gap:16px;">
-        <div class={`ring ${ringTone}`} style={`--off:${off}`}>
+        <div class={`ring ${ringTone}`} style={`--off:${off}`} role="img" aria-label={`Compliance score ${focus.score} out of 100, ${focus.risk} risk`}>
           <svg viewBox="0 0 104 104" aria-hidden="true">
             <circle class="track" cx="52" cy="52" r="45"/>
             <circle class="fill" cx="52" cy="52" r="45"/>
@@ -77,15 +77,15 @@ const checkCount = groups.reduce((n, g) => n + g.checks.length, 0);
 
   <div class="grid-2">
     <div>
-      <div class="tabs" id="tabs">
-        <button class="tab on" type="button" data-pane="checks">Checks <span class="n">{checkCount}</span></button>
-        <button class="tab" type="button" data-pane="findings">Findings <span class="n">{findings.length}</span></button>
-        <button class="tab" type="button" data-pane="docs">Documents <span class="n">{documents.length}</span></button>
-        <button class="tab" type="button" data-pane="trail">Trail <span class="n">{auditTrail.length}</span></button>
+      <div class="tabs" id="tabs" role="tablist" aria-label="Bidder record sections">
+        <button class="tab on" type="button" role="tab" id="tab-checks" aria-controls="pane-checks" aria-selected="true" tabindex="0" data-pane="checks">Checks <span class="n">{checkCount}</span></button>
+        <button class="tab" type="button" role="tab" id="tab-findings" aria-controls="pane-findings" aria-selected="false" tabindex="-1" data-pane="findings">Findings <span class="n">{findings.length}</span></button>
+        <button class="tab" type="button" role="tab" id="tab-docs" aria-controls="pane-docs" aria-selected="false" tabindex="-1" data-pane="docs">Documents <span class="n">{documents.length}</span></button>
+        <button class="tab" type="button" role="tab" id="tab-trail" aria-controls="pane-trail" aria-selected="false" tabindex="-1" data-pane="trail">Trail <span class="n">{auditTrail.length}</span></button>
       </div>
 
       <!-- checks -->
-      <div class="tabpane on" id="pane-checks">
+      <div class="tabpane on" id="pane-checks" role="tabpanel" aria-labelledby="tab-checks" tabindex="0">
         <div class="panel">
           <div class="toolbar">
             <button class="chipf on" type="button">All <span class="x" aria-hidden="true">×</span></button>
@@ -134,7 +134,7 @@ const checkCount = groups.reduce((n, g) => n + g.checks.length, 0);
       </div>
 
       <!-- findings -->
-      <div class="tabpane" id="pane-findings">
+      <div class="tabpane" id="pane-findings" role="tabpanel" aria-labelledby="tab-findings" tabindex="0">
         <div class="panel">
           <div class="panel-body flush">
             {findings.map((f) => (
@@ -159,7 +159,7 @@ const checkCount = groups.reduce((n, g) => n + g.checks.length, 0);
       </div>
 
       <!-- documents -->
-      <div class="tabpane" id="pane-docs">
+      <div class="tabpane" id="pane-docs" role="tabpanel" aria-labelledby="tab-docs" tabindex="0">
         <div class="panel">
           <div class="panel-body">
             <div class="docs">
@@ -188,7 +188,7 @@ const checkCount = groups.reduce((n, g) => n + g.checks.length, 0);
       </div>
 
       <!-- trail -->
-      <div class="tabpane" id="pane-trail">
+      <div class="tabpane" id="pane-trail" role="tabpanel" aria-labelledby="tab-trail" tabindex="0">
         <div class="panel">
           <div class="panel-body flush">
             <div class="trail">
@@ -250,6 +250,11 @@ const checkCount = groups.reduce((n, g) => n + g.checks.length, 0);
             <div class="rec-caveat">
               Local content is self-declared and not independently audited. Portal data as at 09:14, 8 Sep 2026.
             </div>
+
+            <div style="margin-top:14px; display:flex; gap:7px; flex-wrap:wrap;">
+              <button class="chipf" type="button" style="background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.2); color:rgba(234,240,234,.86);" data-ask="Why is Nova Labtech flagged?">Why is this flagged?</button>
+              <button class="chipf" type="button" style="background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.2); color:rgba(234,240,234,.86);" data-ask="What is clause 7.2?">What is clause 7.2?</button>
+            </div>
           </div>
         </div>
 
@@ -284,8 +289,12 @@ const checkCount = groups.reduce((n, g) => n + g.checks.length, 0);
             <textarea class="note-box" placeholder="Reason for the record…">Seeking clarification on the local content computation before deciding on clause 7.2.</textarea>
           </div>
           <div class="decide-foot">
-            <button class="btn-sm solid" type="button">Record decision</button>
+            <button class="btn-sm solid" type="button" id="recordBtn">Record decision</button>
             <button class="btn-sm" type="button">Save draft</button>
+            <span class="saved" id="savedMsg">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg>
+              Recorded 
+            </span>
             <span class="hint">as R. Nair</span>
           </div>
         </div>
@@ -296,16 +305,57 @@ const checkCount = groups.reduce((n, g) => n + g.checks.length, 0);
   <script is:inline>
     (function () {
       var tabs = document.getElementById('tabs');
-      if (!tabs) return;
-      tabs.addEventListener('click', function (e) {
-        var btn = e.target.closest('.tab');
-        if (!btn) return;
-        var pane = btn.getAttribute('data-pane');
-        tabs.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('on', t === btn); });
-        document.querySelectorAll('.tabpane').forEach(function (p) {
-          p.classList.toggle('on', p.id === 'pane-' + pane);
+      if (tabs) {
+        var btns = Array.prototype.slice.call(tabs.querySelectorAll('.tab'));
+
+        function show(pane, focus) {
+          btns.forEach(function (t) {
+            var on = t.getAttribute('data-pane') === pane;
+            t.classList.toggle('on', on);
+            t.setAttribute('aria-selected', on ? 'true' : 'false');
+            t.tabIndex = on ? 0 : -1;
+            if (on && focus) t.focus();
+          });
+          document.querySelectorAll('.tabpane').forEach(function (p) {
+            p.classList.toggle('on', p.id === 'pane-' + pane);
+          });
+          history.replaceState(null, '', '#' + pane);
+        }
+
+        tabs.addEventListener('click', function (e) {
+          var btn = e.target.closest('.tab');
+          if (btn) show(btn.getAttribute('data-pane'), false);
         });
-      });
+
+        // arrow keys move between tabs, as a tablist should
+        tabs.addEventListener('keydown', function (e) {
+          var i = btns.indexOf(document.activeElement);
+          if (i < 0) return;
+          var next = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1
+                   : e.key === 'Home' ? 0 : e.key === 'End' ? btns.length - 1 : -1;
+          if (next === -1) return;
+          e.preventDefault();
+          next = (next + btns.length) % btns.length;
+          show(btns[next].getAttribute('data-pane'), true);
+        });
+
+        // survive a refresh or a back button
+        var hash = (location.hash || '').replace('#', '');
+        if (hash && document.getElementById('pane-' + hash)) show(hash, false);
+      }
+
+      // recording a decision should visibly do something
+      var rec = document.getElementById('recordBtn');
+      var msg = document.getElementById('savedMsg');
+      if (rec && msg) {
+        rec.addEventListener('click', function () {
+          var choice = document.querySelector('input[name="decision"]:checked');
+          var label = choice ? choice.closest('.opt').querySelector('.t').textContent.trim() : 'Decision';
+          msg.lastChild.textContent = ' ' + label + ' recorded';
+          msg.classList.add('on');
+          setTimeout(function () { msg.classList.remove('on'); }, 4000);
+        });
+      }
     })();
   </script>
 </AppLayout>

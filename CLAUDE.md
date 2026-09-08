@@ -55,15 +55,18 @@ bare; cross-page anchors must be `${base}#how` so they work from `/login`.
 ```
 src/
   layouts/Layout.astro      marketing pages: meta, OG/Twitter, canonical, inline SVG favicon
-  layouts/AppLayout.astro   console shell: sidebar + topbar + mobile drawer (owns its own script)
+  layouts/AppLayout.astro   console shell: horizontal navbar + context bar (owns its own script)
   components/Header.astro   floating pill nav + mobile menu (marketing only)
   components/Footer.astro   4-column footer (marketing only)
   data/mock.ts              every value the console renders — single source of truth
+  data/rag.ts               assistant retrieval corpus (48 passages) + starter questions
   pages/index.astro         landing page; content lives in frontmatter arrays
   pages/login.astro         demo sign-in; submitting walks through to /app
   pages/app/index.astro     console: overview + decision queue
   pages/app/tender.astro    console: bidder comparison for one tender
   pages/app/bidder.astro    console: the compliance record (the important screen)
+  pages/app/extract.astro   console: upload & extract — intake, pipeline, extracted fields
+  pages/app/report.astro    console: report builder + live printed-sheet preview
   pages/app/portals.astro   console: source integration health
   pages/app/audit.astro     console: full audit trail
   styles/global.css         marketing design system
@@ -94,11 +97,13 @@ the markup.
 ## Design system (`src/styles/global.css`)
 
 Civic/editorial "ledger" aesthetic — deliberately **not** a generic purple-gradient SaaS page. Warm
-paper ground, deep navy, gold seal accent, green for verified.
+parchment ground (`#F2EDE3` — the colour of a file cover, not an off-white screen), warm-neutral ink
+(`#1C1A15`, not screen-black), deep navy, gold seal accent, green for verified. Shadows are warm
+(brown-black rgba), not blue-grey — cool shadows on parchment read as dirt.
 
 | Token group | Notes |
 |---|---|
-| Ground | `--paper` page, `--paper-raised` alternating sections, `--surface` white cards |
+| Ground | `--paper` **warm parchment** page, `--paper-raised` alternating sections, `--paper-deep` (behind the report sheet, hero logo stack), `--surface` white cards |
 | Brand | `--navy` / `--navy-deep`, `--verify` green, `--seal` gold, `--flag` amber for review states |
 | Elevation | `--shadow-xs` → `--shadow-xl`; cards use `xs`, hover `lg`, the hero mockup `xl` |
 | Radii | `--r-xs` → `--r-xl`, `--r-pill` |
@@ -122,8 +127,31 @@ Frontend only — **no backend yet, by explicit instruction.** Forms and buttons
 login submit, which navigates to `/app`.
 
 Routes: `/app` (overview + queue) -> `/app/tender` (bidder comparison) -> `/app/bidder` (compliance
-record) plus `/app/portals` and `/app/audit`. `AppLayout` takes `title`, `active` (sidebar highlight)
-and `crumbs`.
+record), plus `/app/extract` (upload & extract), `/app/report` (generate report), `/app/portals` and
+`/app/audit`. `AppLayout` takes `title`, `active` (nav highlight) and `crumbs`; `active` is a union
+of all six nav keys, so adding a route means widening it.
+
+The shell is a **floating pill navbar** (`.appbar`: brand left, centred nav, actions right) —
+`position:sticky; top:14px`, `--r-pill` on both ends, translucent white with backdrop blur, gaining
+`.scrolled` past 6px like the marketing nav. Beneath it sits an unstyled context row (`.ab-sub`:
+breadcrumb + search), then `.content`. All three share
+`max-width:min(1340px, calc(100% - 40px))` so their edges line up. Below **1120px** the nav collapses
+into `.ab-menu`, a rounded card hanging off the pill — that breakpoint lives in `app.css` *and* in
+the resize handler in `AppLayout`; change both together. (It is 1120, not the marketing nav's 1000,
+because the console carries six items.) Same light palette throughout — there is no
+sidebar; one existed and was replaced.
+
+The active nav item is a **navy underline** under the label, with the label going navy and semibold
+— a 2.5px rounded rule inset to the item's padding, sitting inside the pill rather than on its edge.
+(An earlier revision used a filled navy pill; the user replaced it — the filled block read as "that
+blue thing". Don't restore it.)
+
+UX affordances worth keeping: a `.skip` link to `#main`; `.bulkbar` (a floating action bar that
+appears only once rows are selected, driven by `input[data-row]` / `input[data-selall]` and wired
+generically in `AppLayout`); `focus-visible` rings on every control; the bidder tabs are a real
+`role="tablist"` with arrow/Home/End keys and the open tab mirrored into the URL hash so a refresh
+or back button keeps it; the score ring carries `role="img"` with a text equivalent; and
+"Record decision" shows an inline confirmation naming the chosen option.
 
 Everything renders from `src/data/mock.ts`, so the same bidder tells one consistent story across
 screens. The focus bidder is **Nova Labtech (78/100, Medium)** — deliberately neither a clean pass
@@ -131,6 +159,15 @@ nor an obvious reject, so the record has to show the engine reasoning and hand a
 
 Rules this console is built on, worth preserving:
 
+- **The dashboard opens with `.act-rail`** — four entry points above the queue: Upload & extract,
+  Generate report, Audit trail and Portal status, in that order. They are entry points, not
+  navigation, which is why they sit above the stats strip rather than in the navbar alone. The
+  assistant is deliberately *not* one of them — it has its own FAB on every page. Portal status
+  carries `.act.flag` (amber) because a source is currently degraded.
+- **No explainer prose in the product.** Panels titled "How this ranking is produced" / "How access
+  works" were removed on request — they read as AI filler. State things through structure and terse
+  labels; a `.meta-row` of facts beats a paragraph. Real controls (tabs, filter chips, sortable
+  headers, pagination, row select) are what make it read as software rather than a mockup.
 - **Every value carries provenance.** A check row shows source portal, submitted value, retrieved
   value, verdict and timestamp. Never render a bare status.
 - **Score is never the decision.** A bidder can score 78 and still fail one qualifying clause. The
@@ -143,11 +180,64 @@ Rules this console is built on, worth preserving:
 - The score ring animates via `--off` (a stroke-dashoffset computed in the page, circumference
   282.7 at r=45) and is disabled under `prefers-reduced-motion`.
 
+### The assistant is real retrieval, not a scripted chat
+
+`Ask Pramaan` — a pill FAB bottom-right on every console page (`.ast-launch`, collapses to a circle
+under 620px), opening `.ast`, a docked panel. `Ctrl/⌘ K` toggles it, `Escape` closes it.
+
+It is **not** a canned script. `src/data/rag.ts` holds 48 passages (`title`, `source`, `href`,
+`answer`, `text`, `keys`); `AppLayout` serialises them into
+`<script type="application/json" id="astCorpus">` and the inline script indexes them once
+(term frequency + document frequency), then scores each question with BM25-style weighting plus a
+bigram bonus and a verbatim-`keys` bonus. The answer is the top passage's `answer`, its `text` as
+support, and up to three citation chips linking to the screen the passage came from.
+
+Two rules hold the honesty line, and both matter more than coverage:
+
+- **It answers only from retrieved passages.** Nothing is generated. If the top score is under the
+  floor and the question is not covered (`hit >= 2 || key > 0 || hit/terms >= 0.5`), it says the
+  record does not cover it and offers the nearest passages instead of improvising.
+- **Every passage restates something already on a screen.** Adding a passage that states a *new*
+  fact would put an uncitable claim in the officer's hands — write the fact into `mock.ts` and the
+  UI first, then describe it here.
+
+Anything on any console page can open it pre-loaded with a question via `data-ask="…"` (an empty
+value just opens the panel) — used on the extract and report page heads and on the recommendation
+card.
+
+### Upload & extract, and Generate report
+
+`/app/extract` — dropzone (real drag/drop and file picker; files stay in the browser and are
+labelled as such), the document list from `mock.documents`, a four-stage pipeline that actually
+walks its stages on "Run extraction", and a field-level diff (`.xrow`) of extracted value against
+source record. Files a user adds are marked `Not in demo` rather than given invented confidences.
+
+`/app/report` — section checkboxes drive a **live preview of a printed sheet** (`.sheet`, on a
+`--paper-deep` desk, with a rotated `Demo environment` stamp). Toggling a section hides its
+`[data-pane]` block and recomputes the page count; format is a `.seg` radio group. Generating walks
+a progress bar and confirms. The stamp and the sheet footer are the honesty markers — keep them.
+
 ### The nav is a floating pill
 
 `header.nav` is `position:sticky; top:16px` and `.nav-inner` is fully rounded (`--r-pill`) with a
 translucent blurred background. It gets `.scrolled` from JS past 8px to deepen the shadow. There is
 **no announcement bar above it** — one existed and was removed; don't add it back.
+
+### The hero
+
+Left column: pill, a two-line headline (`Eleven portals. / One verified record.` — the accent word
+carries a hand-drawn SVG underline that draws itself in), lede, two CTAs, a one-line
+human-in-the-loop note, and `.hero-proof` — six **real portal logos** overlapped like a stack of
+files plus a `+5` chip. Right column: the app mockup. Below both, `.hero-facts`, a four-cell ledger
+strip.
+
+The hero ground is two soft radial washes (seal gold top-right, navy bottom-left) over
+`repeating-linear-gradient` **ruled lines** masked out before they become wallpaper, plus an
+embossed seal *ring* top-right (`.hero::after`) — an outline, hidden under 980px, and never the
+State Emblem.
+
+`.hero-facts` states only claims the copy already makes (11 portals, 38 checks, timestamped, the
+officer decides). It is not a place for new metrics.
 
 ### The hero mockup carries the page
 
@@ -213,11 +303,19 @@ note like that as long as that stays true.
 ## Gotchas
 
 - **An element inside a grid/flex container must have base styles, not only styles inside a
-  `@media` block.** `.scrim` (the console's mobile drawer overlay) is a child of `.app` and was
-  originally given `position:fixed` only under `max-width:960px`. At desktop widths it fell back to a
-  plain block, took grid **column 2**, and pushed `.main` onto the next row — every console page
-  rendered a sidebar next to blank space. It now carries `display:none` at the top level and
-  `display:block` inside the query. Same trap applies to anything else dropped into `.app`.
+  `@media` block.** The console's old left sidebar had a `.scrim` overlay child of `.app` given
+  `position:fixed` only under `max-width:960px`. At desktop it fell back to a plain block, took grid
+  **column 2**, and pushed the whole page body onto the next row — five screens rendered as a nav
+  next to blank space, while the build passed and the markup was all present. The shell is now a
+  flow-level navbar rather than a grid, but the trap returns the moment `.app` becomes a grid again.
+  `src/styles/app.css` is audited for this by diffing selectors defined only inside `@media` against
+  the classes actually rendered in `dist/app/`.
+- **A two-line label written as nested `<span>`s needs `display:block`.** `.who .t .n/.s`,
+  `.act .t/.d`, `.rbrow .t/.d`, `.opt .t/.d`, `.fitem .nm/.sub` are all
+  `<span><span class="t">…</span><span class="d">…</span></span>`. Inline boxes silently ignore
+  `margin-top` *and* `text-overflow:ellipsis`, so the two lines render on one row and long names run
+  under the next column — with no error anywhere. They are blockified in one rule near the end of
+  `app.css`; keep new label/description pairs in it.
 - **Large bash heredocs to write files have failed in this environment** (`unexpected EOF while
   looking for matching`) once the chunk got long, even with a quoted delimiter. Use the Write tool,
   or a Python heredoc, for anything sizeable.

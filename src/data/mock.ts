@@ -387,12 +387,55 @@ export const auditTrail = [
   { ts: '08 Sep · 09:32:02', actor: 'R. Nair', action: 'clarification.raised', detail: 'Query issued to bidder, due 11 Sep 2026', tone: 'warn' },
 ];
 
-export const queue = [
-  { id: 'b11', name: 'Nova Labtech Private Limited', tender: 'GEM/2026/B/4471', score: 78, risk: 'Medium', why: 'Clause 7.2 — local content below threshold', tone: 'warn', age: '17 min' },
-  { id: 'b09', name: 'Orion Supplies Company', tender: 'GEM/2026/B/4471', score: 38, risk: 'High', why: 'Debarment record found in state register', tone: 'alert', age: '22 min' },
-  { id: 'b05', name: 'Kaveri Instruments & Company', tender: 'GEM/2026/B/4471', score: 64, risk: 'Medium', why: 'EPFO contributions in arrears', tone: 'warn', age: '1 h' },
-  { id: 'b21', name: 'Deccan Analytical Systems', tender: 'GEM/2026/B/4398', score: 71, risk: 'Medium', why: 'OEM authorisation expired', tone: 'warn', age: '3 h' },
+/* ---------------------------------------------------------------
+   The overview queue. Every count on that screen (tabs, stat strip,
+   row totals) is derived from this array — nothing is hard-coded in
+   the page, so the numbers cannot drift apart from the table.
+   `mins` exists so age sorts numerically rather than by its label.
+   --------------------------------------------------------------- */
+
+export type QueueStatus = 'awaiting' | 'flagged' | 'review' | 'qualified';
+
+export interface QueueRow {
+  id: string;
+  name: string;
+  tender: string;
+  score: number;
+  risk: 'Low' | 'Medium' | 'High';
+  tone: 'ok' | 'warn' | 'alert';
+  why: string;
+  age: string;
+  mins: number;
+  status: QueueStatus;
+  owner: string;
+}
+
+export const queue: QueueRow[] = [
+  { id: 'b11', name: 'Nova Labtech Private Limited',      tender: 'GEM/2026/B/4471', score: 78, risk: 'Medium', tone: 'warn',  why: 'Clause 7.2 — local content below threshold', age: '17 min', mins: 17,  status: 'awaiting',  owner: 'RN' },
+  { id: 'b09', name: 'Orion Supplies Company',            tender: 'GEM/2026/B/4471', score: 38, risk: 'High',   tone: 'alert', why: 'Debarment record in state register',        age: '22 min', mins: 22,  status: 'flagged',   owner: 'RN' },
+  { id: 'b05', name: 'Kaveri Instruments & Company',      tender: 'GEM/2026/B/4471', score: 64, risk: 'Medium', tone: 'warn',  why: 'EPFO contributions in arrears',             age: '1 h',    mins: 62,  status: 'awaiting',  owner: 'AS' },
+  { id: 'b21', name: 'Deccan Analytical Systems',         tender: 'GEM/2026/B/4398', score: 71, risk: 'Medium', tone: 'warn',  why: 'OEM authorisation expired',                 age: '3 h',    mins: 181, status: 'awaiting',  owner: 'RN' },
+  { id: 'b33', name: 'Vindhya Scientific Traders',        tender: 'GEM/2026/B/4502', score: 52, risk: 'High',   tone: 'alert', why: 'GSTIN cancelled at source',                 age: '4 h',    mins: 243, status: 'flagged',   owner: 'AS' },
+  { id: 'b24', name: 'Chandra Lab Solutions LLP',         tender: 'GEM/2026/B/4398', score: 69, risk: 'Medium', tone: 'warn',  why: 'Turnover below tender floor',               age: '5 h',    mins: 296, status: 'awaiting',  owner: 'RN' },
+  { id: 'b07', name: 'Saraswati Industrial Works Pvt Ltd', tender: 'GEM/2026/B/4471', score: 96, risk: 'Low',   tone: 'ok',    why: '',                                          age: '6 h',    mins: 358, status: 'qualified', owner: 'RN' },
+  { id: 'b03', name: 'Meridian Scientific Instruments',   tender: 'GEM/2026/B/4471', score: 91, risk: 'Low',    tone: 'ok',    why: '',                                          age: '6 h',    mins: 371, status: 'qualified', owner: 'AS' },
+  { id: 'b02', name: 'Konark Instruments Pvt Ltd',        tender: 'GEM/2026/B/4471', score: 89, risk: 'Low',    tone: 'ok',    why: '',                                          age: '7 h',    mins: 402, status: 'qualified', owner: 'RN' },
+  { id: 'b36', name: 'Gomti Scientific Supplies',         tender: 'GEM/2026/B/4502', score: 88, risk: 'Low',    tone: 'ok',    why: '',                                          age: '7 h',    mins: 419, status: 'qualified', owner: 'AS' },
+  { id: 'b26', name: 'Anantha Test Systems',              tender: 'GEM/2026/B/4398', score: 86, risk: 'Low',    tone: 'ok',    why: '',                                          age: '8 h',    mins: 468, status: 'qualified', owner: 'RN' },
+  { id: 'b31', name: 'Nilgiri Lab Equipment Co',          tender: 'GEM/2026/B/4502', score: 84, risk: 'Low',    tone: 'ok',    why: '',                                          age: '9 h',    mins: 521, status: 'qualified', owner: 'AS' },
+  { id: 'b28', name: 'Bharat Precision Works',            tender: 'GEM/2026/B/4398', score: 83, risk: 'Low',    tone: 'ok',    why: '',                                          age: '9 h',    mins: 547, status: 'qualified', owner: 'RN' },
+  { id: 'b39', name: 'Yamuna Analytical Pvt Ltd',         tender: 'GEM/2026/B/4502', score: 81, risk: 'Low',    tone: 'ok',    why: '',                                          age: '10 h',   mins: 603, status: 'qualified', owner: 'AS' },
+  { id: 'b41', name: 'Tapti Instruments & Controls',      tender: 'GEM/2026/B/4502', score: 74, risk: 'Medium', tone: 'warn',  why: 'DigiLocker consent not granted',            age: '11 h',   mins: 664, status: 'review',    owner: 'RN' },
+  { id: 'b18', name: 'Sutlej Scientific Pvt Ltd',         tender: 'GEM/2026/B/4355', score: 67, risk: 'Medium', tone: 'warn',  why: 'Past-performance rating below 3.5',         age: '12 h',   mins: 722, status: 'review',    owner: 'AS' },
 ];
+
+export const queueCounts = {
+  awaiting:  queue.filter((q) => q.status === 'awaiting').length,
+  flagged:   queue.filter((q) => q.status === 'flagged').length,
+  review:    queue.filter((q) => q.status === 'review').length,
+  qualified: queue.filter((q) => q.status === 'qualified').length,
+  all:       queue.length,
+};
 
 export const activeTenders = [
   { id: 'GEM/2026/B/4471', title: 'Supply of laboratory equipment', bidders: 12, verified: 12, pending: 3, closes: '2 days', value: '₹ 4.82 Cr' },
