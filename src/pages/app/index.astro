@@ -1,0 +1,163 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { queue, activeTenders } from '../../data/mock';
+
+const base = import.meta.env.BASE_URL;
+const cols = '30px minmax(0,1.5fr) 132px 128px minmax(0,1.2fr) 62px';
+const tcols = 'minmax(0,1.7fr) 74px 92px 96px 92px';
+
+const sortIcon =
+  '<path d="M8 9.5 12 5.5l4 4"/><path d="M8 14.5 12 18.5l4-4"/>';
+const downIcon = '<path d="M12 5.5v13M7.5 14 12 18.5 16.5 14"/>';
+---
+
+<AppLayout title="Verification queue — Pramaan" active="overview" crumbs={[{ label: 'Overview' }]}>
+  <div class="page-head">
+    <div>
+      <h1>Verification queue</h1>
+      <div class="meta-row">
+        <span>Last sync <b>14:11 IST</b></span>
+        <span><b>4</b> tenders open</span>
+        <span><b>27</b> bidders verified today</span>
+        <span><b>1,026</b> checks</span>
+      </div>
+    </div>
+    <div class="acts">
+      <button class="btn-sm" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" set:html={downIcon}></svg>
+        Export
+      </button>
+      <a class="btn-sm solid" href={`${base}app/tender`}>Open tender board</a>
+    </div>
+  </div>
+
+  <div class="strip">
+    <div class="s"><div class="k">Awaiting decision</div><div class="v warn">4</div></div>
+    <div class="s"><div class="k">Flagged</div><div class="v alert">2</div></div>
+    <div class="s"><div class="k">Qualified today</div><div class="v">19</div></div>
+    <div class="s"><div class="k">Median verify</div><div class="v">38<small>s</small></div></div>
+    <div class="s"><div class="k">Sources live</div><div class="v">11<small>/ 12</small></div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" type="button">Awaiting decision <span class="n">4</span></button>
+    <button class="tab" type="button">Flagged <span class="n">2</span></button>
+    <button class="tab" type="button">Qualified <span class="n">19</span></button>
+    <button class="tab" type="button">All bidders <span class="n">27</span></button>
+  </div>
+
+  <div class="panel">
+    <div class="toolbar">
+      <button class="chipf on" type="button">
+        Risk: Medium+ <span class="x" aria-hidden="true">×</span>
+      </button>
+      <button class="chipf" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7v6l-4 2v-8L4 5Z"/></svg>
+        Tender
+      </button>
+      <button class="chipf" type="button">Blocking clause</button>
+      <div class="tool-sep" aria-hidden="true"></div>
+      <div class="inline-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+        <input type="search" placeholder="Filter this list…" aria-label="Filter queue" />
+      </div>
+      <div class="tool-right">
+        <span style="font-family:var(--mono); font-size:11px; color:var(--ink-muted);">4 rows</span>
+      </div>
+    </div>
+
+    <div class="panel-body flush">
+      <div class="tbl">
+        <div class="tr th" style={`grid-template-columns:${cols};`}>
+          <span class="selcell"><input type="checkbox" aria-label="Select all" /></span>
+          <span>Bidder</span>
+          <span>
+            <button class="sortable act" type="button">
+              Score
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" set:html={downIcon}></svg>
+            </button>
+          </span>
+          <span>
+            <button class="sortable" type="button">
+              Risk
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" set:html={sortIcon}></svg>
+            </button>
+          </span>
+          <span>Blocking</span>
+          <span>
+            <button class="sortable" type="button">
+              Age
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" set:html={sortIcon}></svg>
+            </button>
+          </span>
+        </div>
+
+        {queue.map((q) => (
+          <div class="tr row" style={`grid-template-columns:${cols};`}>
+            <span class="selcell"><input type="checkbox" aria-label={`Select ${q.name}`} /></span>
+            <a href={`${base}app/bidder`} class="who" style="text-decoration:none; color:inherit;">
+              <span class="av" aria-hidden="true">{q.name.split(' ').slice(0, 2).map((w) => w[0]).join('')}</span>
+              <span class="t">
+                <span class="n">{q.name}</span>
+                <span class="s">{q.tender}</span>
+              </span>
+            </a>
+            <span class="score-cell">
+              <span class="v">{q.score}</span>
+              <span class={`bar ${q.tone}`}><i style={`--w:${q.score}%`}></i></span>
+            </span>
+            <span><span class={`bdg ${q.tone}`}>{q.risk}</span></span>
+            <span style="font-size:12.5px; color:var(--ink-soft); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{q.why}</span>
+            <span class="mono-cell">{q.age}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <div class="pager">
+      <span>4 of 4</span>
+      <div class="pg">
+        <button class="pgbtn" type="button" disabled aria-label="Previous">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <button class="pgbtn on" type="button">1</button>
+        <button class="pgbtn" type="button" disabled aria-label="Next">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Open tenders</h2>
+    </div>
+    <div class="panel-body flush">
+      <div class="tbl">
+        <div class="tr th" style={`grid-template-columns:${tcols};`}>
+          <span>Tender</span>
+          <span>Bids</span>
+          <span>Verified</span>
+          <span>Value</span>
+          <span>Closes</span>
+        </div>
+        {activeTenders.map((t) => (
+          <a class="tr row" href={`${base}app/tender`} style={`grid-template-columns:${tcols};`}>
+            <span class="who">
+              <span class="t">
+                <span class="n">{t.title}</span>
+                <span class="s">{t.id}</span>
+              </span>
+            </span>
+            <span class="mono-cell">{t.bidders}</span>
+            <span class="mono-cell" style={t.verified === t.bidders ? 'color:var(--verify)' : 'color:var(--flag)'}>
+              {t.verified}/{t.bidders}
+            </span>
+            <span class="mono-cell">{t.value}</span>
+            <span class="mono-cell" style={t.closes === 'Closed' ? 'color:var(--ink-muted)' : ''}>{t.closes}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </div>
+</AppLayout>

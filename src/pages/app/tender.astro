@@ -1,0 +1,133 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { tender, bidders } from '../../data/mock';
+
+const base = import.meta.env.BASE_URL;
+const cols = '30px minmax(0,1.6fr) 132px 78px 104px 118px';
+
+const sortIcon = '<path d="M8 9.5 12 5.5l4 4"/><path d="M8 14.5 12 18.5l4-4"/>';
+const downIcon = '<path d="M12 5.5v13M7.5 14 12 18.5 16.5 14"/>';
+const riskColor = (r: string) =>
+  r === 'High' ? 'color:var(--alert)' : r === 'Medium' ? 'color:var(--flag)' : 'color:var(--verify)';
+---
+
+<AppLayout
+  title={`${tender.id} — Pramaan`}
+  active="tenders"
+  crumbs={[{ label: 'Tenders', href: `${base}app/tender` }, { label: tender.id }]}
+>
+  <div class="page-head">
+    <div>
+      <h1>{tender.title}</h1>
+      <div class="meta-row">
+        <span><b>{tender.id}</b></span>
+        <span>{tender.value}</span>
+        <span>{tender.bidders} bids</span>
+        <span>Class-I preference</span>
+        <span style="color:var(--flag);">Closes in {tender.closes}</span>
+      </div>
+    </div>
+    <div class="acts">
+      <button class="btn-sm" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" set:html={downIcon}></svg>
+        Export
+      </button>
+      <button class="btn-sm solid" type="button">Record decisions</button>
+    </div>
+  </div>
+
+  <div class="strip">
+    <div class="s"><div class="k">Bids received</div><div class="v">{tender.bidders}</div></div>
+    <div class="s"><div class="k">Qualified</div><div class="v">2</div></div>
+    <div class="s"><div class="k">Awaiting decision</div><div class="v warn">3</div></div>
+    <div class="s"><div class="k">Flagged</div><div class="v alert">1</div></div>
+    <div class="s"><div class="k">Avg. score</div><div class="v">73</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" type="button">All bidders <span class="n">12</span></button>
+    <button class="tab" type="button">Awaiting decision <span class="n">3</span></button>
+    <button class="tab" type="button">Qualified <span class="n">2</span></button>
+    <button class="tab" type="button">Flagged <span class="n">1</span></button>
+  </div>
+
+  <div class="panel">
+    <div class="toolbar">
+      <button class="chipf" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7v6l-4 2v-8L4 5Z"/></svg>
+        Risk
+      </button>
+      <button class="chipf" type="button">MSME status</button>
+      <button class="chipf on" type="button">Clause 7.2 <span class="x" aria-hidden="true">×</span></button>
+      <div class="tool-sep" aria-hidden="true"></div>
+      <div class="inline-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+        <input type="search" placeholder="Bidder, GSTIN, PAN…" aria-label="Filter bidders" />
+      </div>
+      <div class="tool-right">
+        <span style="font-family:var(--mono); font-size:11px; color:var(--ink-muted);">Showing 5 of 12</span>
+      </div>
+    </div>
+
+    <div class="panel-body flush">
+      <div class="tbl">
+        <div class="tr th" style={`grid-template-columns:${cols};`}>
+          <span class="selcell"><input type="checkbox" aria-label="Select all" /></span>
+          <span>Bidder</span>
+          <span>
+            <button class="sortable act" type="button">
+              Score
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" set:html={downIcon}></svg>
+            </button>
+          </span>
+          <span>
+            <button class="sortable" type="button">
+              Risk
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" set:html={sortIcon}></svg>
+            </button>
+          </span>
+          <span>Checks</span>
+          <span>Status</span>
+        </div>
+
+        {bidders.map((b) => (
+          <div class="tr row" style={`grid-template-columns:${cols};`}>
+            <span class="selcell"><input type="checkbox" aria-label={`Select ${b.name}`} /></span>
+            <a href={`${base}app/bidder`} class="who" style="text-decoration:none; color:inherit;">
+              <span class="av" aria-hidden="true">{b.ini}</span>
+              <span class="t">
+                <span class="n">{b.name}</span>
+                <span class="s">{b.city} · {b.msme}</span>
+              </span>
+            </a>
+            <span class="score-cell">
+              <span class="v">{b.score}</span>
+              <span class={`bar ${b.tone === 'ok' ? '' : b.tone}`}><i style={`--w:${b.score}%`}></i></span>
+            </span>
+            <span class="mono-cell" style={riskColor(b.risk)}>{b.risk}</span>
+            <span class="mono-cell">
+              {b.checksPassed}/{b.checksTotal}
+              {b.flags > 0 && <span style="color:var(--flag);"> ·{b.flags}</span>}
+            </span>
+            <span><span class={`bdg ${b.tone}`}>{b.status}</span></span>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <div class="pager">
+      <span>Rows 1–5 of 12</span>
+      <div class="pg">
+        <button class="pgbtn" type="button" disabled aria-label="Previous">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <button class="pgbtn on" type="button">1</button>
+        <button class="pgbtn" type="button">2</button>
+        <button class="pgbtn" type="button">3</button>
+        <button class="pgbtn" type="button" aria-label="Next">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</AppLayout>

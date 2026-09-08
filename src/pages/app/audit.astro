@@ -1,0 +1,76 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { auditTrail, tender, focus } from '../../data/mock';
+
+---
+
+<AppLayout title="Audit trail — Pramaan console" active="audit" crumbs={[{ label: 'Audit trail' }]}>
+  <div class="page-head">
+    <div>
+      <h1>Audit trail</h1>
+      <div class="meta-row">
+        <span><b>GEM/2026/B/4471</b></span>
+        <span>Bidder 11</span>
+        <span>{auditTrail.length} entries</span>
+        <span>Append-only</span>
+        <span>Retained 7 years</span>
+      </div>
+    </div>
+    <div class="acts">
+      <button class="btn-sm" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7v6l-4 2v-8L4 5Z"/></svg>
+        Filter by actor
+      </button>
+      <button class="btn-sm solid" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7.5 10.5 12 15l4.5-4.5M4.5 20h15"/></svg>
+        Export for audit
+      </button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <div style="min-width:0;">
+        <h2>{focus.name}</h2>
+        <span class="note">{tender.id} · {focus.seq}</span>
+      </div>
+      <span class="bdg ok">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10" width="15" height="10" rx="2"/><path d="M8.5 10V7a3.5 3.5 0 0 1 7 0v3"/></svg>
+        Sealed · sha256:9f3c…a71e
+      </span>
+    </div>
+    <div class="toolbar">
+      <button class="chipf on" type="button">All actors <span class="x" aria-hidden="true">×</span></button>
+      <button class="chipf" type="button">engine</button>
+      <button class="chipf" type="button">portal</button>
+      <button class="chipf" type="button">officer</button>
+      <div class="tool-sep" aria-hidden="true"></div>
+      <div class="inline-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+        <input type="search" placeholder="Filter entries…" aria-label="Filter audit entries" />
+      </div>
+      <div class="tool-right">
+        <span style="font-family:var(--mono); font-size:11px; color:var(--ink-muted);">08 Sep 2026</span>
+      </div>
+    </div>
+
+    <div class="panel-body flush">
+      <div class="trail">
+        {auditTrail.map((a) => (
+          <div class={`titem ${a.tone}`}>
+            <span class="ts">{a.ts}</span>
+            <span class="rail"><span class="dot"></span></span>
+            <div class="c">
+              <div class="ac">
+                {a.action}
+                <span class="by">{a.actor}</span>
+              </div>
+              <div class="dt">{a.detail}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+
+</AppLayout>
